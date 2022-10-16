@@ -135,10 +135,13 @@ def initialization(inputs, data):
     outputs["P_c"]  = np.zeros((len(data["T"]),     len(data["Ids"])))
     outputs["P_d"]  = np.zeros((len(data["T"]),     len(data["Ids"])))
     
+    # company cost
+    outputs["cost_c"] = [0 for _ in range(len(data["Ids"]))]
+    
     return outputs
     
 if __name__ == '__main__':
-    model = "2"
+    model = "1"
     if (model == "1"):
         data = read_model_1("DER.xlsx", "Prices.csv", "Load time_series.csv", "PV time_series.csv")
         inputs = OrderedDict()

@@ -61,7 +61,7 @@ def bidding_model_1(data, outputs, cnum):
     m.P_c  = Var(m.T,      within=Reals, bounds=GE_0_Bound_V2)
     m.P_d  = Var(m.T,      within=Reals, bounds=GE_0_Bound_V2)
     # PV generation (kW)
-    m.PV   = Var(m.T,      within=Reals)
+    m.PV   = Var(m.T,      within=Reals, bounds=GE_0_Bound_V2)
     # state-of-charge (kWh)
     m.SOC  = Var(m.T_SOC,  within=Reals)
     # charging or discharging (0 or 1)
@@ -135,9 +135,9 @@ def bidding_model_1(data, outputs, cnum):
     m.constrs33 = Constraint(m.T, rule = Constraint_33)
     
     # Constraint (34) sets the range of pv generation based on the forecasted solar power
-    def Constraint_34(m, t):
-        return (0, m.PV[t], m.MPV[t])
-    m.constrs34 = Constraint(m.T, rule = Constraint_34)
+    # def Constraint_34(m, t):
+    #     return (0, m.PV[t], m.MPV[t])
+    # m.constrs34 = Constraint(m.T, rule = Constraint_34)
     
     # Constraint (35) and (36) define the raise and lower capacities of the PV
     def Constraint_35(m, t):
@@ -204,12 +204,6 @@ def bidding_model_1(data, outputs, cnum):
     
     return outputs
 
-def GE_0_Bound_V1(model, i, j):
-    return (0, None)
-    
-def GE_0_Bound_V2(model, i):
-    return (0, None)
-
 def bidding_model_2(data, outputs, cnum, tnum):
     m = ConcreteModel()
     
@@ -236,7 +230,7 @@ def bidding_model_2(data, outputs, cnum, tnum):
     # TODO Tariff: buy price ($/kWh)
     m.λ_TB = Param(m.T,      initialize=data["tariff_buy"][str(tnum)])
     # TODO Tariff: sell price ($/kWh)
-    m.λ_TS = Param(m.T,      initialize=data["tariff_sell"][str(tnum)])
+    λ_TS = data["tariff_sell"][str(tnum)]
     # TODO wholesale price ($/kWh)
     m.λ_E  = Param(m.T,      initialize=data["energy_price"])
     # raise FCAS price ($/kW) 
@@ -251,6 +245,11 @@ def bidding_model_2(data, outputs, cnum, tnum):
     Δt  = data["Δt"]
     # TODO efficiency of the BESS
     η   = data["eff"][cnum]
+    # TODO upper bound of energy bids (kW)
+    m.E_U = Param(m.T, initialize=(data["load"].iloc[:, cnum] + MP_C))
+    # TODO lower bound of energy bids (kW)
+    m.E_L = Param(m.T, initialize=(data["load"].iloc[:, cnum] - data["PV"].iloc[:, cnum] - MP_D))
+    print("------------------------------parameters done------------------------------")
     
     #! variables
     # energy bids (kW)
@@ -279,12 +278,15 @@ def bidding_model_2(data, outputs, cnum, tnum):
     m.τ    = Var(m.T,      within=Binary)
     # TODO positive or negative m.E (0 or 1) 
     m.α    = Var(m.T,      within=Binary)
+    # TODO energy bought and energy sold (kw)
+    m.E_b  = Var(m.T,      within=Reals, bounds=EB_Bound)
+    m.E_s  = Var(m.T,      within=Reals, bounds=ES_Bound)
     print("------------------------------variables done------------------------------")
     
     # TODO
     #! objective function
     def obj_rule(m):
-        return (summation(m.λ_E, m.E)) * Δt - (summation(m.λ_R, m.R)) * Δt - (summation(m.λ_L, m.L)) * Δt
+        return (sum(λ_TS * m.E_s[t] + m.λ_TB[t] * m.E_b[t] for t in data["T"])) * Δt - (summation(m.λ_R, m.R)) * Δt - (summation(m.λ_L, m.L)) * Δt
     m.obj = Objective(rule=obj_rule, sense=minimize)
     print("------------------------------objective done------------------------------")
     
@@ -365,9 +367,27 @@ def bidding_model_2(data, outputs, cnum, tnum):
     # SOC Constraint
     m.socc = Constraint(expr=m.SOC[0] == 0)
     
-    # TODO Cost Constraint
-    m.costconstrs = Constraint(expr=m.SOC[0] == 0)
+    # TODO positive or negative Constraint
+    def Constraint_Pos_1(m, t):
+        return m.E[t] <= m.E_U[t] * m.α[t]
+    m.constrsPos_1 = Constraint(m.T, rule = Constraint_Pos_1)
+
+    def Constraint_Pos_2(m, t):
+        return m.E[t] >= m.E_L[t] * (1 - m.α[t])
+    m.constrsPos_2 = Constraint(m.T, rule = Constraint_Pos_2)
     
+    # TODO Cost Constraint
+    def Constraint_PALL(m, t):
+        return m.E[t] == m.E_b[t] + m.E_s[t]
+    m.constrsAll = Constraint(m.T, rule = Constraint_PALL)
+
+    def Constraint_EBuy(m, t):
+        return m.E_b[t] <= m.E_U[t] * m.α[t]
+    m.constrsEBuy = Constraint(m.T, rule = Constraint_EBuy)
+
+    def Constraint_ESell(m, t):
+        return m.E_s[t] >= m.E_L[t] * (1 - m.α[t])
+    m.constrsESell = Constraint(m.T, rule = Constraint_ESell)
     print("------------------------------Constraint done------------------------------")
 
     opt        = SolverFactory('cplex')  # opt = SolverFactory('glpk')
@@ -389,15 +409,13 @@ def bidding_model_2(data, outputs, cnum, tnum):
     
     # Annual costs
     outputs["total_net_cost"][cnum]  = value(m.obj)
-    outputs["energy_net_cost"][cnum] = (value(summation(m.λ_E, m.E))) * Δt
-    # outputs["FCAS_net_cost"][cnum]   = - (value(summation(m.λ_R, m.R))) * Δt - (value(summation(m.λ_L, m.L))) * Δt
+    outputs["energy_net_cost"][cnum] = (sum(λ_TS * value(m.E_s[t]) + m.λ_TB[t] * value(m.E_b[t]) for t in data["T"])) * Δt
     outputs["FCAS_net_cost"][cnum] = outputs["total_net_cost"][cnum] - outputs["energy_net_cost"][cnum]
+    outputs["cost_c"][cnum] = value(summation(m.λ_E, m.E)) * Δt # company cost
     print("Annual cost output done") 
     
     # energy and FCAS bid
     outputs["E_b"][:, cnum] = np.array([value(m.E[t]) for t in data["T"]])
-    # outputs["L_b"][:, cnum] = np.array([value(m.L[t, w]) for t in data["T"] for w in data["W"]]).reshape(lenT, 3)
-    # outputs["R_b"][:, cnum] = np.array([value(m.R[t, w]) for t in data["T"] for w in data["W"]]).reshape(lenT, 3)
     outputs["L_b"][:, cnum] = ["-".join([str(value(m.L[t, w])) for w in data["W"]]) for t in data["T"]]
     outputs["R_b"][:, cnum] = ["-".join([str(value(m.R[t, w])) for w in data["W"]]) for t in data["T"]]
     
@@ -418,6 +436,19 @@ def bidding_model_2(data, outputs, cnum, tnum):
     outputs["L_pv"][:, cnum] = np.array([value(m.L_pv[t]) for t in data["T"]])
     outputs["R_pv"][:, cnum] = np.array([value(m.R_pv[t]) for t in data["T"]])
     print("PV generation output done")
+    
     print("------------------------------outputs done------------------------------")
     
     return outputs
+
+def GE_0_Bound_V1(model, i, j):
+    return (0, None)
+    
+def GE_0_Bound_V2(model, i):
+    return (0, None)
+
+def EB_Bound(m, i):
+        return (0, m.E_U[i])
+    
+def ES_Bound(m, i):
+    return (min(0, m.E_L[i]), 0)
