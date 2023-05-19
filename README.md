@@ -32,7 +32,7 @@ To run the model, follow the steps mentioned in 4.1.
 The central file of this project, which can read data from different business models to run AOM or ROM on a specific client's ID range and optimise the usage of their DER for a year. The optimisation results are displayed as CSV files in the output directory in the corresponding business model subdirectory.
 The model configurations stored in `inputs ` that can be changed are:  
 1. `inputs["start_client"]` and `inputs["end_client"]`: Changing the starting client ID and ending client ID to specify 
-the model to run within this clients' ID range (avaliable range is [0, 91]).
+the model to run within this clients' ID range (available range is [0, 91]).
 2. `inputs["FCAS"]`: Deciding whether the aggregator participates in the FCAS market, if it does, please change it to True, 
 if it only participates in the Energy market, please change it to False.
 3. `inputs["Model"]`: indicating which model is running, you can choose between "AOM" and "TOM"
@@ -46,7 +46,7 @@ and initialise the storage container for the optimisation results. This file con
 + `read_aggregator_business_model`: Read the aggregator business model data files stored in the *data\aggregator_model_data*
 + `read_retail_business_model`: Read the retail business model data files stored in the *data\retail_model_data folder*
 
-and a optimisation result storage container initialisation function
+and an optimisation result storage container initialisation function.
 + `initialisation`: Configure the optimisation results container `outputs`
 
 ### 4.3 [model.py](model.py)
@@ -56,10 +56,10 @@ This file contains two MILP optimisation model functions. This function integrat
 
 Specific indices, parameter variable definition, objective function and constraint details are well commented in the model.
 
-### 4.3 [write.py](write.py)
+### 4.4 [write.py](write.py)
 This file writes the optimisation result data of AOM or ROM stored in `outputs` into the CSV files, where:
 + `write_cost_outputs`: Write the objective function values of all client IDs specified in main.py into:
-    + `output\aggregator_business_model`: AOM results. There will be different subdirectories for different market participation senarios.
+    + `output\aggregator_business_model`: AOM results. There will be different subdirectories for different market participation scenarios.
     + `output\retail_business_model`: ROM results. There will be different subdirectories for different tariffs.
 + `write_var_output` or `write_var_output_v2`: Write the variables values of all client IDs specified in main.py into the folder mentioned above. 
 
