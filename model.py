@@ -4,12 +4,12 @@
 # Supervisor: Jose Iria
 
 ## Description:
-# Aggregation Bidding Optimisation Model (ABOM): This model minimises the annual electricity expenditure and maximises the annual
+# Aggregator Optimisation Model (AOM): This model minimises the annual electricity expenditure and maximises the annual
 # FCAS market revenues in the context of using the electricity wholesale market price. It is designed for the DER aggregators, 
 # which helps them to explore what is the expenditure of managing the DER for their clients for one year such as importing energy 
 # from the electricity wholesale market to meet client's needs and bidding the capacity in FCAS market to earn additional revenues.
 #
-# Retail Bidding Optimisation Model (TBOM): In the context of using the TOU tariffs or FR tariffs as the electricity price, 
+# Retail Optimisation Model (TOM): In the context of using the TOU tariffs or FR tariffs as the electricity price, 
 # this model minimises the annual electricity expenditure for the client or the retailing revenue under the aspect of retailers. 
 # This model simulates the case where the aggregator selects the traditional pricing scheme such as tariff structure as their 
 # pricing scheme, and optimally manage clients’ demand and DER, to explore what is the possible minimum electricity expenditure
@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from read import *
 
-def Aggregation_Bidding_Optimisation_Model(data, outputs, cnum, saveDetail=False, FCAS=True):
+def Aggregator_Optimisation_Model(data, outputs, cnum, saveDetail=False, FCAS=True):
     '''This model plans energy and capacity bids based on wholesale prices to minimise energy costs and maximise the FCAS market revenues. Objective function is in (1).
         It has the following constraints:
             1. Total energy constraint (2)
@@ -81,6 +81,7 @@ def Aggregation_Bidding_Optimisation_Model(data, outputs, cnum, saveDetail=False
         def init_Param_LFCAS(model, t, w):
             return data["L_FCAS_price"][t, w]
         m.λ_L = Param(m.T, m.W, initialize=init_Param_LFCAS)
+    print("------------------------------Parameters done----------------------------")
     
     ##! Variables
     # Energy bids (kW)
@@ -110,7 +111,7 @@ def Aggregation_Bidding_Optimisation_Model(data, outputs, cnum, saveDetail=False
         # Raise/lower capacity provided by PV (kW)
         m.L_pv = Var(m.T,      within=Reals, bounds=GE_0_Bound_V2)
         m.R_pv = Var(m.T,      within=Reals, bounds=GE_0_Bound_V2)
-    print("------------------------------variables done------------------------------")
+    print("------------------------------Variables done------------------------------")
     
     ##! Objective function
     def obj_rule(m):
@@ -124,7 +125,7 @@ def Aggregation_Bidding_Optimisation_Model(data, outputs, cnum, saveDetail=False
         else:
             return (summation(m.λ_E, m.E)) * Δt
     m.obj = Objective(rule=obj_rule, sense=minimize)
-    print("------------------------------objective done------------------------------")
+    print("------------------------------Objective function done---------------------")
     
     ##! Constraints
     # Constraint (2) defines the net energy usage of the client
@@ -203,13 +204,13 @@ def Aggregation_Bidding_Optimisation_Model(data, outputs, cnum, saveDetail=False
         
         def Constraint_17(m, t):
             return m.L_pv[t] <= m.PV[t]
-        m.constrs17 = Constraint(m.T, rule = Constraint_17)
-    print("------------------------------Constraint done------------------------------")
+        m.constrs17 = Constraint(m.T, rule = Constraint_17)       
+    print("------------------------------Constraints done----------------------------")
 
-    # Solver 
+    ##! Solver 
     opt      = SolverFactory('cplex')  # or opt = SolverFactory('glpk')
-    solution = opt.solve(m, tee=False)             
-    print("------------------------------solution done------------------------------")
+    solution = opt.solve(m, tee=False)               
+    print("------------------------------Solution done------------------------------")
     
     ##! Output 
     # Solver output
@@ -254,12 +255,12 @@ def Aggregation_Bidding_Optimisation_Model(data, outputs, cnum, saveDetail=False
             # FCAS bid related to PV
             outputs["L_pv"][:, cnum] = np.array([value(m.L_pv[t]) for t in data["T"]])
             outputs["R_pv"][:, cnum] = np.array([value(m.R_pv[t]) for t in data["T"]])
-        print("PV generation output done")
-    print("------------------------------outputs done------------------------------")
+        print("PV generation output done") 
+    print("-----------------------------Outputs done--------------------------------")
     
     return outputs
 
-def Retail_Bidding_Optimisation_Model(data, outputs, cnum, tnum, saveDetail=False):
+def Retail_Optimisation_Model(data, outputs, cnum, tnum, saveDetail=False):
     '''This model plans energy bids based on tariffs to minimise energy cost. Objective function is in (18).
         It has the following constraints:
             1. Energy constraints (19)-(21)
@@ -308,7 +309,7 @@ def Retail_Bidding_Optimisation_Model(data, outputs, cnum, tnum, saveDetail=Fals
     Δt = data["Δt"]
     # Efficiency of the BESS
     η  = data["eff"][cnum]
-    print("------------------------------parameters done------------------------------")
+    print("------------------------------Parameters done----------------------------")
     
     ##! Variables
     # Energy bids (kW)
@@ -324,8 +325,8 @@ def Retail_Bidding_Optimisation_Model(data, outputs, cnum, tnum, saveDetail=Fals
     m.τ   = Var(m.T,     within=Binary)
     # Energy bought and energy sold (kw)
     m.E_b = Var(m.T,     within=Reals, bounds=GE_0_Bound_V2)
-    m.E_s = Var(m.T,     within=Reals, bounds=GE_0_Bound_V2)
-    print("------------------------------variables done------------------------------")
+    m.E_s = Var(m.T,     within=Reals, bounds=GE_0_Bound_V2)  
+    print("------------------------------Variables done-----------------------------")
     
     ##! Objective function
     def obj_rule(m):
@@ -333,7 +334,7 @@ def Retail_Bidding_Optimisation_Model(data, outputs, cnum, tnum, saveDetail=Fals
         '''
         return (sum(-1 * λ_TS * m.E_s[t] + m.λ_TB[t] * m.E_b[t] for t in data["T"])) * Δt
     m.obj = Objective(rule=obj_rule, sense=minimize)
-    print("------------------------------objective done------------------------------")
+    print("------------------------------Objective function done--------------------")
     
     #! Constraints
     # Constraint (19) defines the consumption or generation of the prosumer
@@ -370,14 +371,13 @@ def Retail_Bidding_Optimisation_Model(data, outputs, cnum, tnum, saveDetail=Fals
     m.constrs26 = Constraint(m.T, rule = Constraint_26)
     
     # Additional SOC constraint to ensure that SOC is 0 at time step 0.
-    m.socc = Constraint(expr=m.SOC[0] == 0)
-    
-    print("------------------------------Constraint done------------------------------")
+    m.socc = Constraint(expr=m.SOC[0] == 0) 
+    print("------------------------------Constraints done---------------------------")
 
-    # Solver
+    ##! Solver 
     opt      = SolverFactory('cplex')  # or opt = SolverFactory('glpk')
     solution = opt.solve(m, tee=False)             
-    print("------------------------------solution done------------------------------")
+    print("------------------------------Solution done------------------------------")
     
     ##! Output 
     print(solution.solver.termination_condition) 
@@ -408,8 +408,8 @@ def Retail_Bidding_Optimisation_Model(data, outputs, cnum, tnum, saveDetail=Fals
         
         # PV generation
         outputs["PV"][:, cnum] = np.array([value(m.PV[t]) for t in data["T"]])
-        print("PV generation output done")
-    print("------------------------------outputs done------------------------------")
+        print("PV generation output done") 
+    print("------------------------------Outputs done------------------------------")
     
     return outputs
 

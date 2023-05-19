@@ -23,8 +23,8 @@ def write_cost_outputs(outputs, inputs, data, outputdir):
     '''
     client_range = range(inputs["start_client"], inputs["end_client"] + 1)
     # different name for different business models
-    obj_name_1   = "wholesale cost" if inputs["Model"] == 1 else "retail cost"
-    obj_name_2   = "None" if inputs["Model"] == 1 else "wholesale cost"
+    obj_name_1   = "wholesale cost" if inputs["Model"] == "AOM" else "retail cost"
+    obj_name_2   = "None" if inputs["Model"] == "AOM" else "wholesale cost"
     
     with open(f'{os.getcwd()}/output/{outputdir}/COST.csv', 'w') as file:
         # write IDs

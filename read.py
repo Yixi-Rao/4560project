@@ -4,8 +4,8 @@
 # Supervisor: Jose Iria
 
 ## Description:
-# This pyhton file contains the functions that define data to be read to the two optimisation models and initialises
-# the storage container for the optimisation results.
+# This python file contains functions that define the reading of business model data, which will be read into the two optimisation models, 
+# and initialise the storage container for the optimisation results.
 
 # Imports ---------------------------------------------------------------------
 import numpy as np
@@ -13,15 +13,15 @@ import pandas as pd
 from collections import OrderedDict
 import os
 
-## Read aggregation business model data ---------------------------------------------------------------------
-def read_aggregation_business_model(DERFile, PriceFile, LoadFile, PVFile):
-    '''read the data related to aggregation business model
+## Read aggregator business model data ---------------------------------------------------------------------
+def read_aggregator_business_model(DERFile, PriceFile, LoadFile, PVFile):
+    '''Read the data related to aggregator business model
 
         Args:
-            DERFile : File path of DER parameters
+            DERFile :   File path of DER parameters
             PriceFile : File path of wholesale prices
-            LoadFile : File path of Load time series
-            PVFile : File path of PV time series
+            LoadFile :  File path of Load time series
+            PVFile :    File path of PV time series
 
         Returns:
             data (OrderedDict): A dictionary that contains all the information needed to optimise DER.
@@ -74,7 +74,7 @@ def readWholesalePrices(PriceFile, data):
 
 ## Read retail business model data ---------------------------------------------------------------------
 def read_retail_business_model(DERFile, tariffSellFile, tariffBuyFile, WholesalePriceFile, LoadFile, PVFile):
-    '''read the data related to aggregation business model
+    '''read the data related to retail business model
 
         Args:
             DERFile : File path of DER parameters
@@ -177,7 +177,7 @@ def initialisation(inputs, data):
     outputs["total_net_cost"]  = [0 for _ in range(len(data["Ids"]))]
     outputs["energy_net_cost"] = [0 for _ in range(len(data["Ids"]))]
     outputs["FCAS_net_cost"]   = [0 for _ in range(len(data["Ids"]))]
-    # Electricity wholesale cost for RBOM
+    # Electricity wholesale cost for ROM
     outputs["cost_c"] = [0 for _ in range(len(data["Ids"]))]
     
     # Variable information
